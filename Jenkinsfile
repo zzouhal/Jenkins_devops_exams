@@ -15,161 +15,90 @@ pipeline{
     agent any
     stages{
 
-        // stage('run docker compose'){
-        //     steps{
-        //         script{
-        //         sh '''
-        //           docker-compose up -d
-        //         '''
-        //         }
-        //     }
-        // }
-
-        // stage('test docker compose') {
-        //     steps{
-        //         script{
-        //         sh '''
-        //         curl -I GET http://localhost:8080/api/v1/movies/docs 
-        //         curl -I  GET http://localhost:8080/api/v1/casts/docs
-        //         '''
-        //         }
-        //     }
-        // }
-
-        // stage('stop docker compose') {
-        //     steps{
-        //         script{
-        //         sh '''
-        //         docker-compose down
-        //         '''
-        //         }
-        //     }
-        // }
-
-        stage('Build movie service'){
-            environment
-            {
-                DOCKER_IMAGE = "movie-service"
-            }
-
+        stage('Docker Build') {
             steps {
                 script {
-                sh '''
-                cd $DOCKER_IMAGE/
-                docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
-                sleep 6
-                '''
-                }
-            }
-
-        }
-
-        stage('Build cast service'){
-            environment
-            {
-                DOCKER_IMAGE = "cast-service"
-            }
-
-            steps {
-                script {
-                sh '''
-                cd $DOCKER_IMAGE/
-                docker build -t $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG .
-                sleep 6
-                '''
-                }
-            }
-
-        }
-
-        stage('Docker run cast service'){
-            environment
-            {
-                DOCKER_IMAGE = "cast-service"
-            }
-                steps {
-                    script {
-                    sh ''' 
-                    docker stop cast-service
-                    docker rm cast-service
-                    docker run -d -p 8002:8000 --name cast-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-                    sleep 10
-                    curl localhost
-                    '''
-                    }
-                }
-            }
-
-
-            stage('Docker run movie service'){
-            environment
-            {
-                DOCKER_IMAGE = "movie-service"
-            }
-                steps {
-                    script {
                     sh '''
-                    docker stop movie-service
-                    docker rm movie-service
-                    docker run -d -p 8001:8000 --name movie-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-                    sleep 10
-                    curl localhost
+                    if (docker ps -a | grep -q cast-service); then
+                        docker stop cast-service
+                        docker rm -f cast-service
+                    fi
+                    if (docker ps -a | grep -q movie-service); then
+                        docker stop movie-service
+                        docker rm -f movie-service
+                    fi
+                    if (docker ps -a | grep -q cast-db); then
+                        docker stop cast-db
+                        docker rm -f cast-db
+                    fi
+                    if (docker ps -a | grep -q movie-db); then
+                        docker stop movie-db
+                        docker rm -f movie-db
+                    fi
+                    if (docker ps -a | grep -q nginx-service); then
+                        docker stop nginx-service
+                        docker rm -f nginx-service
+                    fi
+                    docker build -t $DOCKER_ID/$DOCKER_CAST_IMAGE:$DOCKER_TAG ./cast-service
+                    docker build -t $DOCKER_ID/$DOCKER_MOVIE_IMAGE:$DOCKER_TAG ./movie-service
+                    sleep 6
                     '''
-                    }
                 }
             }
-
-        // stage('Test Acceptance movie service'){
-        //     steps {
-        //             script {
-        //             sh '''
-        //             curl localhost:8000
-        //             '''
-        //             }
-        //     }
-        // }
-
-        //  stage('Test Acceptance cast service'){
-        //     steps {
-        //             script {
-        //             sh '''
-        //             curl localhost:8002
-        //             '''
-        //             }
-        //     }
-        // }
-
-        stage('Push cast service'){
-            environment
-            {
-                DOCKER_IMAGE = "cast-service"
-            }
-
-            steps {
-                script {
-                sh '''
-                cd $DOCKER_IMAGE/
-                docker login -u $DOCKER_ID -p $DOCKERHUB_PWD
-                docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-                '''
-                }
-            }
-
         }
 
-        stage('Push movie service'){
-            environment
-            {
-                DOCKER_IMAGE = "movie-service"
-            }
-
+        stage('Docker run') {
             steps {
                 script {
-                sh '''
-                cd $DOCKER_IMAGE/
-                docker login -u $DOCKER_ID -p $DOCKERHUB_PWD
-                docker push $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
-                '''
+                    sh '''
+                    docker run -d --name cast-db \
+                        -v postgres_data_cast:/var/lib/postgresql/data/ \
+                        -e POSTGRES_USER=cast_db_user \
+                        -e POSTGRES_PASSWORD=cast_db_password \
+                        -e POSTGRES_DB=cast_db \
+                        postgres:12.1-alpine
+                    docker run -d --name movie-db \
+                        -v postgres_data_movie:/var/lib/postgresql/data/ \
+                        -e POSTGRES_USER=movie_db_user \
+                        -e POSTGRES_PASSWORD=movie_db_password \
+                        -e POSTGRES_DB=movie_db \
+                        postgres:12.1-alpine
+                    docker run -d --name cast-service \
+                        -p 8002:8000 \
+                        -e DATABASE_URI=postgresql://cast_db_user:cast_db_password@cast-db:5432/cast_db \
+                        $DOCKER_ID/$DOCKER_CAST_IMAGE:$DOCKER_TAG
+                    docker run -d --name movie-service \
+                        -p 8001:8000 \
+                        -e DATABASE_URI=postgresql://movie_db_user:movie_db_password@movie-db:5432/movie_db \
+                        -e CAST_SERVICE_HOST_URL=http://cast_service:8000/api/v1/casts/ \
+                        $DOCKER_ID/$DOCKER_MOVIE_IMAGE:$DOCKER_TAG
+                    docker run -d --name nginx-service \
+                        -p 80:8080 \
+                        -v ./nginx_config.conf:/etc/nginx/conf.d/default.conf \
+                        nginx:1.17.6-alpine
+                    sleep 10
+                    '''
+                }
+            }
+        }
+
+             stage('Test Acceptance') {
+            steps {
+                script {
+                    sh '''
+                    curl localhost
+                    '''
+                }
+            }
+        }
+        stage('Docker Push') {
+            steps {
+                script {
+                    sh '''
+                    docker login -u $DOCKER_ID -p $DOCKERHUB_PWD
+                    docker push $DOCKER_ID/$DOCKER_MOVIE_IMAGE:$DOCKER_TAG
+                    docker push $DOCKER_ID/$DOCKER_CAST_IMAGE:$DOCKER_TAG
+                    '''
                 }
             }
 
