@@ -98,7 +98,7 @@ pipeline{
             }
 
 
-            stage('Docker run cast service'){
+            stage('Docker run movie service'){
             environment
             {
                 DOCKER_IMAGE = "movie-service"
