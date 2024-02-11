@@ -223,9 +223,9 @@ pipeline{
 
         stage('Deploiement en prod'){
 
-            when {
-                branch 'master'
-            }
+            // when {
+            //     branch 'master'
+            // }
             steps {
             
                 timeout(time: 5, unit: "MINUTES") {
