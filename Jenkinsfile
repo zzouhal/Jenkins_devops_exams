@@ -92,7 +92,7 @@ pipeline{
                     sh ''' 
                     docker stop cast-service
                     docker rm cast-service
-                    docker run --rm -d -p 8002:8000 --name cast-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                    docker run -d -p 8002:8000 --name cast-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     sleep 10
                     '''
                     }
@@ -110,7 +110,7 @@ pipeline{
                     sh '''
                     docker stop movie-service
                     docker rm movie-service
-                    docker run --rm -d -p 8001:8000 --name movie-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                    docker run -d -p 8001:8000 --name movie-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     sleep 10
                     '''
                     }
