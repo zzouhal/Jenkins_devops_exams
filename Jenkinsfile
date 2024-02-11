@@ -117,7 +117,7 @@ pipeline{
             steps {
                     script {
                     sh '''
-                    curl movie-service:8000
+                    curl localhost:8001
                     '''
                     }
             }
@@ -127,7 +127,7 @@ pipeline{
             steps {
                     script {
                     sh '''
-                    curl cast-service:8000
+                    curl localhost:8002
                     '''
                     }
             }
