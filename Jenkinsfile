@@ -10,6 +10,8 @@ pipeline{
         KUBECONFIG = credentials("config")
         MOVIE_DB_PWD = credentials("MOVIE_DB_PWD")
         CAST_DB_PWD = credentials("CAST_DB_PWD")
+        DOCKER_CAST_IMAGE = "cast-service"
+        DOCKER_MOVIE_IMAGE = "movie-service"
     }
 
     agent any
