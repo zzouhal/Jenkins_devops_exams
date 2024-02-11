@@ -89,8 +89,9 @@ pipeline{
             }
                 steps {
                     script {
-                    sh '''
-                    docker run -d -p 8002:8000 --name cast-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                    sh ''' 
+                    docker stop container cast-service
+                    docker run --rm -d -p 8002:8000 --name cast-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     sleep 10
                     '''
                     }
@@ -106,7 +107,8 @@ pipeline{
                 steps {
                     script {
                     sh '''
-                    docker run -d -p 8001:8000 --name movie-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
+                    docker stop container movie-service
+                    docker run --rm -d -p 8001:8000 --name movie-service $DOCKER_ID/$DOCKER_IMAGE:$DOCKER_TAG
                     sleep 10
                     '''
                     }
